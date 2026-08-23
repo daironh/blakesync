@@ -9,6 +9,8 @@ use crate::engine::ComparisonEntry;
 pub struct App {
     /// The classified files to review, as produced by the comparison engine.
     pub entries: Vec<ComparisonEntry>,
+    /// Index into `entries` for the row shown in the attribute inspector.
+    pub selected: usize,
     /// Set to `true` once the user has requested to exit.
     pub should_quit: bool,
 }
@@ -17,6 +19,7 @@ impl App {
     pub fn new(entries: Vec<ComparisonEntry>) -> Self {
         Self {
             entries,
+            selected: 0,
             should_quit: false,
         }
     }
@@ -52,6 +55,7 @@ mod tests {
     fn starts_with_provided_entries_and_does_not_quit() {
         let app = App::new(vec![]);
         assert!(app.entries.is_empty());
+        assert_eq!(app.selected, 0);
         assert!(!app.should_quit);
     }
 

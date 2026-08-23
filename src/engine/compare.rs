@@ -23,10 +23,16 @@ pub enum CompareStatus {
 }
 
 /// A single classified entry, keyed by its path relative to both roots.
+///
+/// `source`/`dest` carry the metadata captured during traversal (size,
+/// mtime) so the TUI's attribute inspector can display them without
+/// re-walking or re-statting the filesystem.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ComparisonEntry {
     pub rel_path: PathBuf,
     pub status: CompareStatus,
+    pub source: Option<FileEntry>,
+    pub dest: Option<FileEntry>,
 }
 
 /// Walks `source_root` and `dest_root`, then classifies every file found
@@ -45,13 +51,21 @@ pub fn compare_trees(source_root: &Path, dest_root: &Path) -> anyhow::Result<Vec
 
     let mut results = Vec::with_capacity(all_paths.len());
     for rel_path in all_paths {
-        let status = match (source_map.get(&rel_path), dest_map.get(&rel_path)) {
+        let source_entry = source_map.get(&rel_path).cloned();
+        let dest_entry = dest_map.get(&rel_path).cloned();
+
+        let status = match (&source_entry, &dest_entry) {
             (Some(_), None) => CompareStatus::SourceOnly,
             (None, Some(_)) => CompareStatus::DestOnly,
             (Some(src), Some(dst)) => classify(source_root, dest_root, &rel_path, src, dst)?,
             (None, None) => unreachable!("path was collected from one of the two maps"),
         };
-        results.push(ComparisonEntry { rel_path, status });
+        results.push(ComparisonEntry {
+            rel_path,
+            status,
+            source: source_entry,
+            dest: dest_entry,
+        });
     }
 
     Ok(results)
