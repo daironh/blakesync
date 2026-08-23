@@ -7,8 +7,10 @@
 
 pub mod compare;
 pub mod hash;
+pub mod resolution;
 pub mod walk;
 
 pub use compare::{compare_trees, CompareStatus, ComparisonEntry};
 pub use hash::hash_file;
+pub use resolution::Resolution;
 pub use walk::{walk_dir, FileEntry};

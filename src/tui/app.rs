@@ -9,13 +9,9 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::engine::{hash_file, ComparisonEntry};
 
 /// The user's resolution choice for a single file, keyed by its relative
-/// path in [`App::tags`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Tag {
-    KeepSource,
-    KeepDest,
-    Ignore,
-}
+/// path in [`App::tags`]. Shared with the executor (Task 8) as
+/// [`crate::engine::Resolution`].
+pub use crate::engine::Resolution as Tag;
 
 /// A cached BLAKE3 digest pair, computed on demand for the currently
 /// selected file (source hash, destination hash). Either side may be

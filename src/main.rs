@@ -1,5 +1,6 @@
 mod cli;
 mod engine;
+mod executor;
 mod tui;
 
 use clap::Parser;
