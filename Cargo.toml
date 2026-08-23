@@ -12,3 +12,7 @@ crossterm = "0.28"
 anyhow = "1.0"
 log = "0.4"
 simplelog = "0.12"
+
+[dev-dependencies]
+tempfile = "3"
+
