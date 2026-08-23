@@ -1,5 +1,5 @@
 # TASKS.md: Execution Plan
-- [ ] Task 1: Scaffolding & CLI (`clap` args).
+- [x] Task 1: Scaffolding & CLI (`clap` args).
 - [ ] Task 2: Multithreaded Traversal (`ignore` crate).
 - [ ] Task 3: BLAKE3 Hashing utility.
 - [ ] Task 4: Comparison Engine (Metadata fast-path -> Hash).
