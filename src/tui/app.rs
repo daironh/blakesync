@@ -31,6 +31,14 @@ pub struct App {
     /// On-demand BLAKE3 hashes, keyed by relative path, computed via the
     /// 'h' keybinding rather than eagerly for every file.
     pub hash_cache: HashMap<PathBuf, HashPair>,
+    /// Set to `true` when the user presses Enter, asking the event loop to
+    /// run the executor over the current tags. Cleared once handled.
+    pub execute_requested: bool,
+    /// `Some((completed, total))` while the executor is running; `None`
+    /// otherwise.
+    pub progress: Option<(usize, usize)>,
+    /// A short status line shown after the executor finishes.
+    pub status_message: Option<String>,
     source_root: PathBuf,
     dest_root: PathBuf,
 }
@@ -43,6 +51,9 @@ impl App {
             should_quit: false,
             tags: HashMap::new(),
             hash_cache: HashMap::new(),
+            execute_requested: false,
+            progress: None,
+            status_message: None,
             source_root,
             dest_root,
         }
@@ -78,6 +89,10 @@ impl App {
             }
             KeyCode::Char('h') => {
                 self.hash_selected();
+                true
+            }
+            KeyCode::Enter => {
+                self.execute_requested = true;
                 true
             }
             _ => false,
@@ -168,6 +183,15 @@ mod tests {
         assert_eq!(app.selected, 0);
         assert!(!app.should_quit);
         assert!(app.tags.is_empty());
+        assert!(!app.execute_requested);
+        assert_eq!(app.progress, None);
+    }
+
+    #[test]
+    fn enter_requests_execution() {
+        let mut app = app_with(vec![entry("a")]);
+        assert!(app.on_key(key(KeyCode::Enter)));
+        assert!(app.execute_requested);
     }
 
     #[test]

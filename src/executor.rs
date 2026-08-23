@@ -2,9 +2,8 @@
 //! source and destination trees, preserving mtimes, and reports progress
 //! as it runs so callers (e.g. the TUI) can render a progress bar.
 //!
-//! Not yet wired into the TUI's event loop or the `--dry-run`/`--log-file`
-//! CLI flags; that hookup lands in Task 9.
-#![allow(dead_code)]
+//! Wired into the TUI's event loop (Enter key) and the `--dry-run` /
+//! `--log-file` CLI flags in `src/tui/mod.rs` and `src/main.rs`.
 
 use std::collections::HashMap;
 use std::fs;

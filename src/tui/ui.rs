@@ -1,11 +1,11 @@
 //! Rendering for the TUI: a split-pane layout with a file list on the left
 //! and an attribute inspector (size, mtime, hash, tag) for the selected
-//! file on the right. Reflects the navigation/tagging state driven by
-//! `App::on_key` (Task 7).
+//! file on the right, plus a bottom status bar that doubles as a progress
+//! gauge while the executor (Task 8/9) is running.
 
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
-use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
+use ratatui::widgets::{Block, Borders, Gauge, List, ListItem, ListState, Paragraph};
 use ratatui::Frame;
 
 use crate::engine::{CompareStatus, ComparisonEntry};
@@ -13,14 +13,22 @@ use crate::engine::{CompareStatus, ComparisonEntry};
 use super::app::Tag;
 use super::App;
 
+const HELP_TEXT: &str = "j/k move  s=keep source  d=keep dest  i=ignore  h=hash  Enter=execute  q=quit";
+
 pub fn draw(frame: &mut Frame, app: &App) {
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(1)])
+        .split(frame.area());
+
     let panes = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
-        .split(frame.area());
+        .split(rows[0]);
 
     draw_file_list(frame, panes[0], app);
     draw_inspector(frame, panes[1], app);
+    draw_status_bar(frame, rows[1], app);
 }
 
 fn draw_file_list(frame: &mut Frame, area: Rect, app: &App) {
@@ -46,6 +54,19 @@ fn draw_inspector(frame: &mut Frame, area: Rect, app: &App) {
     let block = Block::default().title("Inspector").borders(Borders::ALL);
     let text = inspector_lines(app).join("\n");
     frame.render_widget(Paragraph::new(text).block(block), area);
+}
+
+/// Renders a live progress gauge while the executor is running, otherwise
+/// falls back to the last status message (or a keybinding hint).
+fn draw_status_bar(frame: &mut Frame, area: Rect, app: &App) {
+    if let Some((done, total)) = app.progress {
+        let ratio = if total == 0 { 1.0 } else { done as f64 / total as f64 };
+        let gauge = Gauge::default().ratio(ratio.clamp(0.0, 1.0)).label(format!("{done}/{total}"));
+        frame.render_widget(gauge, area);
+    } else {
+        let text = app.status_message.clone().unwrap_or_else(|| HELP_TEXT.to_string());
+        frame.render_widget(Paragraph::new(text), area);
+    }
 }
 
 /// Formats a single row of the file list pane, prefixed with the file's
