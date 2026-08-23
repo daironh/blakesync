@@ -1,0 +1,14 @@
+[package]
+name = "blakesync"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.6", features = ["derive"] }
+ignore = "0.4"
+blake3 = "1.5"
+ratatui = "0.30"
+crossterm = "0.28"
+anyhow = "1.0"
+log = "0.4"
+simplelog = "0.12"
