@@ -1,6 +1,7 @@
 //! Rendering for the TUI: a split-pane layout with a file list on the left
-//! and an attribute inspector (size, mtime, hash) for the selected file on
-//! the right. Keybindings and tagging (Task 7) will build on top of this.
+//! and an attribute inspector (size, mtime, hash, tag) for the selected
+//! file on the right. Reflects the navigation/tagging state driven by
+//! `App::on_key` (Task 7).
 
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -9,6 +10,7 @@ use ratatui::Frame;
 
 use crate::engine::{CompareStatus, ComparisonEntry};
 
+use super::app::Tag;
 use super::App;
 
 pub fn draw(frame: &mut Frame, app: &App) {
@@ -22,7 +24,11 @@ pub fn draw(frame: &mut Frame, app: &App) {
 }
 
 fn draw_file_list(frame: &mut Frame, area: Rect, app: &App) {
-    let items: Vec<ListItem> = app.entries.iter().map(|entry| ListItem::new(list_row(entry))).collect();
+    let items: Vec<ListItem> = app
+        .entries
+        .iter()
+        .map(|entry| ListItem::new(list_row(entry, app.tags.get(&entry.rel_path).copied())))
+        .collect();
 
     let list = List::new(items)
         .block(Block::default().title("Files").borders(Borders::ALL))
@@ -38,13 +44,28 @@ fn draw_file_list(frame: &mut Frame, area: Rect, app: &App) {
 
 fn draw_inspector(frame: &mut Frame, area: Rect, app: &App) {
     let block = Block::default().title("Inspector").borders(Borders::ALL);
-    let text = inspector_lines(app.entries.get(app.selected)).join("\n");
+    let text = inspector_lines(app).join("\n");
     frame.render_widget(Paragraph::new(text).block(block), area);
 }
 
-/// Formats a single row of the file list pane.
-pub fn list_row(entry: &ComparisonEntry) -> String {
-    format!("{:<11} {}", status_label(entry.status), entry.rel_path.display())
+/// Formats a single row of the file list pane, prefixed with the file's
+/// tag marker (`[S]`/`[D]`/`[X]`/`[ ]`).
+pub fn list_row(entry: &ComparisonEntry, tag: Option<Tag>) -> String {
+    format!(
+        "[{}] {:<11} {}",
+        tag_marker(tag),
+        status_label(entry.status),
+        entry.rel_path.display()
+    )
+}
+
+fn tag_marker(tag: Option<Tag>) -> char {
+    match tag {
+        Some(Tag::KeepSource) => 'S',
+        Some(Tag::KeepDest) => 'D',
+        Some(Tag::Ignore) => 'X',
+        None => ' ',
+    }
 }
 
 /// Short, fixed-width label for a comparison status.
@@ -57,10 +78,19 @@ pub fn status_label(status: CompareStatus) -> &'static str {
     }
 }
 
+/// Human-readable label for a tag, used in the attribute inspector.
+pub fn tag_label(tag: Tag) -> &'static str {
+    match tag {
+        Tag::KeepSource => "KEEP SOURCE",
+        Tag::KeepDest => "KEEP DEST",
+        Tag::Ignore => "IGNORE",
+    }
+}
+
 /// Builds the lines of text shown in the attribute inspector for the
-/// currently selected entry, if any.
-pub fn inspector_lines(entry: Option<&ComparisonEntry>) -> Vec<String> {
-    let Some(entry) = entry else {
+/// currently selected entry, including its tag and any cached hash.
+pub fn inspector_lines(app: &App) -> Vec<String> {
+    let Some(entry) = app.entries.get(app.selected) else {
         return vec!["No files to review.".to_string()];
     };
 
@@ -85,8 +115,24 @@ pub fn inspector_lines(entry: Option<&ComparisonEntry>) -> Vec<String> {
         None => lines.push("Dest: (missing)".to_string()),
     }
 
-    lines.push("BLAKE3 hash: press 'h' to compute".to_string());
+    match app.hash_cache.get(&entry.rel_path) {
+        Some((source_hash, dest_hash)) => {
+            lines.push(format!("Source hash: {}", format_hash(*source_hash)));
+            lines.push(format!("Dest hash:   {}", format_hash(*dest_hash)));
+        }
+        None => lines.push("BLAKE3 hash: press 'h' to compute".to_string()),
+    }
+
+    match app.tags.get(&entry.rel_path) {
+        Some(tag) => lines.push(format!("Tag: {}", tag_label(*tag))),
+        None => lines.push("Tag: (untagged) - s=keep source, d=keep dest, i=ignore".to_string()),
+    }
+
     lines
+}
+
+fn format_hash(hash: Option<blake3::Hash>) -> String {
+    hash.map(|h| h.to_hex().to_string()).unwrap_or_else(|| "n/a".to_string())
 }
 
 fn format_mtime(time: std::time::SystemTime) -> String {
@@ -122,6 +168,10 @@ mod tests {
         }
     }
 
+    fn app_with(entries: Vec<ComparisonEntry>) -> App {
+        App::new(PathBuf::from("/src"), PathBuf::from("/dst"), entries)
+    }
+
     #[test]
     fn status_label_covers_all_variants() {
         assert_eq!(status_label(CompareStatus::SourceOnly), "SOURCE-ONLY");
@@ -131,17 +181,35 @@ mod tests {
     }
 
     #[test]
-    fn inspector_lines_reports_no_selection() {
-        assert_eq!(inspector_lines(None), vec!["No files to review.".to_string()]);
+    fn tag_marker_reflects_tag_state() {
+        assert_eq!(list_row(&sample_entry(), None).chars().nth(1), Some(' '));
+        assert_eq!(list_row(&sample_entry(), Some(Tag::KeepSource)).chars().nth(1), Some('S'));
+        assert_eq!(list_row(&sample_entry(), Some(Tag::KeepDest)).chars().nth(1), Some('D'));
+        assert_eq!(list_row(&sample_entry(), Some(Tag::Ignore)).chars().nth(1), Some('X'));
     }
 
     #[test]
-    fn inspector_lines_reports_size_and_status_for_selection() {
-        let entry = sample_entry();
-        let lines = inspector_lines(Some(&entry));
+    fn inspector_lines_reports_no_selection() {
+        assert_eq!(inspector_lines(&app_with(vec![])), vec!["No files to review.".to_string()]);
+    }
+
+    #[test]
+    fn inspector_lines_reports_size_status_and_untagged_hint() {
+        let app = app_with(vec![sample_entry()]);
+        let lines = inspector_lines(&app);
         assert!(lines.iter().any(|l| l.contains("MODIFIED")));
         assert!(lines.iter().any(|l| l.contains("10 bytes")));
         assert!(lines.iter().any(|l| l.contains("12 bytes")));
+        assert!(lines.iter().any(|l| l.contains("press 'h' to compute")));
+        assert!(lines.iter().any(|l| l.contains("untagged")));
+    }
+
+    #[test]
+    fn inspector_lines_reports_tag_once_assigned() {
+        let mut app = app_with(vec![sample_entry()]);
+        app.tags.insert(PathBuf::from("a.txt"), Tag::KeepDest);
+        let lines = inspector_lines(&app);
+        assert!(lines.iter().any(|l| l.contains("KEEP DEST")));
     }
 
     #[test]
@@ -149,10 +217,10 @@ mod tests {
         let backend = TestBackend::new(80, 24);
         let mut terminal = Terminal::new(backend).unwrap();
 
-        let empty_app = App::new(vec![]);
+        let empty_app = app_with(vec![]);
         terminal.draw(|frame| draw(frame, &empty_app)).unwrap();
 
-        let populated_app = App::new(vec![sample_entry()]);
+        let populated_app = app_with(vec![sample_entry()]);
         terminal.draw(|frame| draw(frame, &populated_app)).unwrap();
     }
 }

@@ -6,6 +6,7 @@ mod ui;
 pub use app::App;
 
 use std::io::{self, Stdout};
+use std::path::PathBuf;
 use std::time::Duration;
 
 use crossterm::event::{self, Event};
@@ -18,9 +19,9 @@ use crate::engine::ComparisonEntry;
 
 /// Initializes the terminal, runs the review loop until the user quits,
 /// then restores the terminal to its original state.
-pub fn run(entries: Vec<ComparisonEntry>) -> anyhow::Result<()> {
+pub fn run(source_root: PathBuf, dest_root: PathBuf, entries: Vec<ComparisonEntry>) -> anyhow::Result<()> {
     let mut terminal = init_terminal()?;
-    let mut app = App::new(entries);
+    let mut app = App::new(source_root, dest_root, entries);
 
     let result = event_loop(&mut terminal, &mut app);
 
