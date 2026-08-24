@@ -16,6 +16,10 @@ pub struct Cli {
     #[arg(long)]
     pub dry_run: bool,
 
+    /// Include files that are identical in both trees
+    #[arg(long)]
+    pub show_same: bool,
+
     /// Write a log of operations to the given file
     #[arg(long, value_name = "FILE")]
     pub log_file: Option<PathBuf>,
@@ -31,6 +35,7 @@ mod tests {
         assert_eq!(cli.source, PathBuf::from("src_dir"));
         assert_eq!(cli.destination, PathBuf::from("dst_dir"));
         assert!(!cli.dry_run);
+        assert!(!cli.show_same);
         assert_eq!(cli.log_file, None);
     }
 
@@ -46,6 +51,12 @@ mod tests {
             Cli::try_parse_from(["blakesync", "src_dir", "dst_dir", "--log-file", "sync.log"])
                 .unwrap();
         assert_eq!(cli.log_file, Some(PathBuf::from("sync.log")));
+    }
+
+    #[test]
+    fn parses_show_same_flag() {
+        let cli = Cli::try_parse_from(["blakesync", "src_dir", "dst_dir", "--show-same"]).unwrap();
+        assert!(cli.show_same);
     }
 
     #[test]

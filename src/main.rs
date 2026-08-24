@@ -32,7 +32,19 @@ fn run() -> anyhow::Result<()> {
             cli.destination.display()
         )
     })?;
+
+    let results = filter_entries_for_display(results, cli.show_same);
     tui::run(cli.source, cli.destination, results, cli.dry_run)
+}
+
+fn filter_entries_for_display(
+    mut entries: Vec<engine::ComparisonEntry>,
+    show_same: bool,
+) -> Vec<engine::ComparisonEntry> {
+    if !show_same {
+        entries.retain(|entry| entry.status != engine::CompareStatus::Same);
+    }
+    entries
 }
 
 fn validate_input_root(label: &str, path: &Path) -> anyhow::Result<()> {
@@ -61,6 +73,16 @@ fn init_logging(log_file: Option<&Path>) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
+
+    fn entry(name: &str, status: engine::CompareStatus) -> engine::ComparisonEntry {
+        engine::ComparisonEntry {
+            rel_path: PathBuf::from(name),
+            status,
+            source: None,
+            dest: None,
+        }
+    }
 
     #[test]
     fn no_log_file_is_a_no_op() {
@@ -90,5 +112,28 @@ mod tests {
         std::fs::write(&file_path, b"x").unwrap();
 
         assert!(validate_input_root("destination", &file_path).is_err());
+    }
+
+    #[test]
+    fn filter_entries_hides_same_by_default() {
+        let entries = vec![
+            entry("same.txt", engine::CompareStatus::Same),
+            entry("changed.txt", engine::CompareStatus::Modified),
+        ];
+
+        let filtered = filter_entries_for_display(entries, false);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].rel_path, PathBuf::from("changed.txt"));
+    }
+
+    #[test]
+    fn filter_entries_can_include_same() {
+        let entries = vec![
+            entry("same.txt", engine::CompareStatus::Same),
+            entry("changed.txt", engine::CompareStatus::Modified),
+        ];
+
+        let filtered = filter_entries_for_display(entries, true);
+        assert_eq!(filtered.len(), 2);
     }
 }
