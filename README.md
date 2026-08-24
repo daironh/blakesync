@@ -48,6 +48,7 @@ Options:
 | Flag | Description |
 | --- | --- |
 | `--dry-run` | Plan and log every action without touching the filesystem. |
+| `--show-same` | Include files that are identical in both trees (hidden by default). |
 | `--log-file <FILE>` | Write execution logs to `FILE`. Required if you want logging, since the TUI owns the terminal and can't print to stdout. |
 
 Example:
