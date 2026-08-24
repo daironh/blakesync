@@ -55,8 +55,7 @@ mod tests {
 
     #[test]
     fn parses_show_same_flag() {
-        let cli = Cli::try_parse_from(["blakesync", "src_dir", "dst_dir", "--show-same"])
-            .unwrap();
+        let cli = Cli::try_parse_from(["blakesync", "src_dir", "dst_dir", "--show-same"]).unwrap();
         assert!(cli.show_same);
     }
 
