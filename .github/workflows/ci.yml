@@ -35,3 +35,17 @@ jobs:
 
       - name: Test
         run: cargo test --all-targets
+
+  security:
+    name: cargo-audit & cargo-deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Audit dependencies for known advisories (RustSec)
+        uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check advisories, licenses, and banned/duplicate crates
+        uses: EmbarkStudios/cargo-deny-action@v2

@@ -1,6 +1,6 @@
 # BlakeSync ⚡
 
-[![License](https://img.shields.io/badge/License-MIT%2FApache--2.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-MIT%2FApache--2.0-blue.svg)](LICENSE-MIT)
 [![Built with Rust](https://img.shields.io/badge/Built_with-Rust-orange.svg)](https://www.rust-lang.org/)
 
 A high-speed, local-first file synchronization and comparison tool. Written in Rust to leverage zero-cost abstractions, multithreaded directory traversal, and C-level I/O performance.
