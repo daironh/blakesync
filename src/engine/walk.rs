@@ -26,6 +26,7 @@ pub struct FileEntry {
 /// `.gitignore` rules.
 pub fn walk_dir(root: &Path) -> anyhow::Result<Vec<FileEntry>> {
     let entries: Arc<Mutex<Vec<FileEntry>>> = Arc::new(Mutex::new(Vec::new()));
+    let first_error: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
     let threads = std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(1);
@@ -43,24 +44,42 @@ pub fn walk_dir(root: &Path) -> anyhow::Result<Vec<FileEntry>> {
     walker.run(|| {
         let root = root.clone();
         let entries = Arc::clone(&entries);
+        let first_error = Arc::clone(&first_error);
         Box::new(move |result| {
-            if let Ok(entry) = result {
-                let is_file = entry.file_type().map(|ft| ft.is_file()).unwrap_or(false);
-                if is_file {
-                    if let Ok(metadata) = entry.metadata() {
-                        if let Ok(rel_path) = entry.path().strip_prefix(&root) {
-                            entries.lock().unwrap().push(FileEntry {
-                                rel_path: rel_path.to_path_buf(),
-                                size: metadata.len(),
-                                mtime: metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH),
-                            });
+            match result {
+                Ok(entry) => {
+                    let is_file = entry.file_type().map(|ft| ft.is_file()).unwrap_or(false);
+                    if is_file {
+                        if let Ok(metadata) = entry.metadata() {
+                            if let Ok(rel_path) = entry.path().strip_prefix(&root) {
+                                entries.lock().unwrap().push(FileEntry {
+                                    rel_path: rel_path.to_path_buf(),
+                                    size: metadata.len(),
+                                    mtime: metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH),
+                                });
+                            }
                         }
                     }
+                }
+                Err(err) => {
+                    let mut slot = first_error.lock().unwrap();
+                    if slot.is_none() {
+                        *slot = Some(err.to_string());
+                    }
+                    return WalkState::Quit;
                 }
             }
             WalkState::Continue
         })
     });
+
+    let maybe_error = Arc::try_unwrap(first_error)
+        .map_err(|_| anyhow::anyhow!("walker threads did not release traversal error state"))?
+        .into_inner()
+        .map_err(|_| anyhow::anyhow!("traversal error mutex was poisoned"))?;
+    if let Some(error) = maybe_error {
+        anyhow::bail!("failed to walk '{}': {}", root.display(), error);
+    }
 
     let entries = Arc::try_unwrap(entries)
         .map_err(|_| anyhow::anyhow!("walker threads did not release entries"))?
