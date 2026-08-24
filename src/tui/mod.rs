@@ -9,6 +9,7 @@ use std::io::{self, Stdout};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use anyhow::Context;
 use crossterm::event::{self, Event};
 use crossterm::execute;
 use crossterm::terminal::{
@@ -28,12 +29,12 @@ pub fn run(
     entries: Vec<ComparisonEntry>,
     dry_run: bool,
 ) -> anyhow::Result<()> {
-    let mut terminal = init_terminal()?;
+    let mut terminal = init_terminal().context("failed to initialize terminal UI")?;
     let mut app = App::new(source_root.clone(), dest_root.clone(), entries);
 
     let result = event_loop(&mut terminal, &mut app, &source_root, &dest_root, dry_run);
 
-    restore_terminal(terminal)?;
+    restore_terminal(terminal).context("failed to restore terminal state")?;
     result
 }
 
@@ -45,7 +46,9 @@ fn event_loop(
     dry_run: bool,
 ) -> anyhow::Result<()> {
     while !app.should_quit {
-        terminal.draw(|frame| ui::draw(frame, app))?;
+        terminal
+            .draw(|frame| ui::draw(frame, app))
+            .context("failed to draw TUI frame")?;
 
         if app.execute_requested {
             app.execute_requested = false;
@@ -53,8 +56,8 @@ fn event_loop(
             continue;
         }
 
-        if event::poll(Duration::from_millis(200))? {
-            if let Event::Key(key) = event::read()? {
+        if event::poll(Duration::from_millis(200)).context("failed to poll terminal events")? {
+            if let Event::Key(key) = event::read().context("failed to read terminal event")? {
                 app.on_key(key);
             }
         }
@@ -110,15 +113,18 @@ fn log_result(result: &executor::ActionResult, dry_run: bool) {
 }
 
 fn init_terminal() -> anyhow::Result<Terminal<CrosstermBackend<Stdout>>> {
-    enable_raw_mode()?;
+    enable_raw_mode().context("failed to enable raw mode")?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
-    Ok(Terminal::new(CrosstermBackend::new(stdout))?)
+    execute!(stdout, EnterAlternateScreen).context("failed to enter alternate screen")?;
+    Terminal::new(CrosstermBackend::new(stdout)).context("failed to create terminal backend")
 }
 
 fn restore_terminal(mut terminal: Terminal<CrosstermBackend<Stdout>>) -> anyhow::Result<()> {
-    disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
-    terminal.show_cursor()?;
+    disable_raw_mode().context("failed to disable raw mode")?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen)
+        .context("failed to leave alternate screen")?;
+    terminal
+        .show_cursor()
+        .context("failed to show cursor while restoring terminal")?;
     Ok(())
 }

@@ -4,10 +4,13 @@
 use std::fs::File;
 use std::path::Path;
 
+use anyhow::Context;
+
 /// Computes the BLAKE3 hash of the file at `path` by streaming its
 /// contents through a `Hasher`, avoiding loading the whole file into memory.
 pub fn hash_file(path: &Path) -> anyhow::Result<blake3::Hash> {
-    let file = File::open(path)?;
+    let file = File::open(path)
+        .with_context(|| format!("failed to open file for hashing: {}", path.display()))?;
     let mut hasher = blake3::Hasher::new();
     hasher.update_reader(file)?;
     Ok(hasher.finalize())
