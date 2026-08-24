@@ -34,7 +34,10 @@ pub struct ActionResult {
 /// Builds the ordered list of actions to perform from the comparison
 /// results and the user's tags. Untagged entries are skipped, since the
 /// user hasn't made a decision for them yet.
-pub fn plan_actions(entries: &[ComparisonEntry], tags: &HashMap<PathBuf, Resolution>) -> Vec<Action> {
+pub fn plan_actions(
+    entries: &[ComparisonEntry],
+    tags: &HashMap<PathBuf, Resolution>,
+) -> Vec<Action> {
     entries
         .iter()
         .map(|entry| match tags.get(&entry.rel_path) {
@@ -60,12 +63,18 @@ pub fn apply_action(
             applied: false,
             message: "skipped".to_string(),
         }),
-        Action::CopySourceToDest(rel_path) => {
-            copy_preserving_mtime(&source_root.join(rel_path), &dest_root.join(rel_path), rel_path, dry_run)
-        }
-        Action::CopyDestToSource(rel_path) => {
-            copy_preserving_mtime(&dest_root.join(rel_path), &source_root.join(rel_path), rel_path, dry_run)
-        }
+        Action::CopySourceToDest(rel_path) => copy_preserving_mtime(
+            &source_root.join(rel_path),
+            &dest_root.join(rel_path),
+            rel_path,
+            dry_run,
+        ),
+        Action::CopyDestToSource(rel_path) => copy_preserving_mtime(
+            &dest_root.join(rel_path),
+            &source_root.join(rel_path),
+            rel_path,
+            dry_run,
+        ),
     }
 }
 
@@ -87,7 +96,12 @@ pub fn execute_plan(
     Ok(results)
 }
 
-fn copy_preserving_mtime(from: &Path, to: &Path, rel_path: &Path, dry_run: bool) -> anyhow::Result<ActionResult> {
+fn copy_preserving_mtime(
+    from: &Path,
+    to: &Path,
+    rel_path: &Path,
+    dry_run: bool,
+) -> anyhow::Result<ActionResult> {
     if dry_run {
         return Ok(ActionResult {
             rel_path: rel_path.to_path_buf(),
@@ -136,7 +150,12 @@ mod tests {
 
     #[test]
     fn plan_actions_maps_tags_to_actions_and_defaults_untagged_to_skip() {
-        let entries = vec![entry("keep_source.txt"), entry("keep_dest.txt"), entry("ignored.txt"), entry("untagged.txt")];
+        let entries = vec![
+            entry("keep_source.txt"),
+            entry("keep_dest.txt"),
+            entry("ignored.txt"),
+            entry("untagged.txt"),
+        ];
         let mut tags = HashMap::new();
         tags.insert(PathBuf::from("keep_source.txt"), Resolution::KeepSource);
         tags.insert(PathBuf::from("keep_dest.txt"), Resolution::KeepDest);
@@ -144,8 +163,14 @@ mod tests {
 
         let actions = plan_actions(&entries, &tags);
 
-        assert_eq!(actions[0], Action::CopySourceToDest(PathBuf::from("keep_source.txt")));
-        assert_eq!(actions[1], Action::CopyDestToSource(PathBuf::from("keep_dest.txt")));
+        assert_eq!(
+            actions[0],
+            Action::CopySourceToDest(PathBuf::from("keep_source.txt"))
+        );
+        assert_eq!(
+            actions[1],
+            Action::CopyDestToSource(PathBuf::from("keep_dest.txt"))
+        );
         assert_eq!(actions[2], Action::Skip(PathBuf::from("ignored.txt")));
         assert_eq!(actions[3], Action::Skip(PathBuf::from("untagged.txt")));
     }
@@ -161,14 +186,23 @@ mod tests {
         fs::write(dest_root.join("f.txt"), b"stale dest content").unwrap();
 
         let mtime = std::time::SystemTime::now() - Duration::from_secs(3600);
-        fs::File::open(source_root.join("f.txt")).unwrap().set_modified(mtime).unwrap();
+        fs::File::open(source_root.join("f.txt"))
+            .unwrap()
+            .set_modified(mtime)
+            .unwrap();
 
         let action = Action::CopySourceToDest(PathBuf::from("f.txt"));
         let result = apply_action(&action, &source_root, &dest_root, false).unwrap();
 
         assert!(result.applied);
-        assert_eq!(fs::read(dest_root.join("f.txt")).unwrap(), b"source content");
-        let dest_mtime = fs::metadata(dest_root.join("f.txt")).unwrap().modified().unwrap();
+        assert_eq!(
+            fs::read(dest_root.join("f.txt")).unwrap(),
+            b"source content"
+        );
+        let dest_mtime = fs::metadata(dest_root.join("f.txt"))
+            .unwrap()
+            .modified()
+            .unwrap();
         assert_eq!(dest_mtime, mtime);
     }
 
@@ -177,7 +211,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let source_root = dir.path().join("source");
         let dest_root = dir.path().join("dest");
-        fs::create_dir_all(&dest_root.join("nested")).unwrap();
+        fs::create_dir_all(dest_root.join("nested")).unwrap();
         fs::create_dir_all(&source_root).unwrap();
         fs::write(dest_root.join("nested/f.txt"), b"dest content").unwrap();
 
@@ -185,7 +219,10 @@ mod tests {
         let result = apply_action(&action, &source_root, &dest_root, false).unwrap();
 
         assert!(result.applied);
-        assert_eq!(fs::read(source_root.join("nested/f.txt")).unwrap(), b"dest content");
+        assert_eq!(
+            fs::read(source_root.join("nested/f.txt")).unwrap(),
+            b"dest content"
+        );
     }
 
     #[test]
@@ -207,7 +244,13 @@ mod tests {
     #[test]
     fn skip_action_never_touches_the_filesystem() {
         let dir = tempfile::tempdir().unwrap();
-        let result = apply_action(&Action::Skip(PathBuf::from("x.txt")), dir.path(), dir.path(), false).unwrap();
+        let result = apply_action(
+            &Action::Skip(PathBuf::from("x.txt")),
+            dir.path(),
+            dir.path(),
+            false,
+        )
+        .unwrap();
         assert!(!result.applied);
     }
 

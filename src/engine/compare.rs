@@ -72,7 +72,10 @@ pub fn compare_trees(source_root: &Path, dest_root: &Path) -> anyhow::Result<Vec
 }
 
 fn to_map(entries: Vec<FileEntry>) -> HashMap<PathBuf, FileEntry> {
-    entries.into_iter().map(|e| (e.rel_path.clone(), e)).collect()
+    entries
+        .into_iter()
+        .map(|e| (e.rel_path.clone(), e))
+        .collect()
 }
 
 fn classify(
@@ -112,7 +115,7 @@ mod tests {
     fn find<'a>(entries: &'a [ComparisonEntry], name: &str) -> &'a ComparisonEntry {
         entries
             .iter()
-            .find(|e| e.rel_path == PathBuf::from(name))
+            .find(|e| e.rel_path == Path::new(name))
             .unwrap_or_else(|| panic!("entry {name} not found in {entries:?}"))
     }
 
@@ -125,8 +128,14 @@ mod tests {
 
         let results = compare_trees(source.path(), dest.path()).unwrap();
 
-        assert_eq!(find(&results, "only_in_source.txt").status, CompareStatus::SourceOnly);
-        assert_eq!(find(&results, "only_in_dest.txt").status, CompareStatus::DestOnly);
+        assert_eq!(
+            find(&results, "only_in_source.txt").status,
+            CompareStatus::SourceOnly
+        );
+        assert_eq!(
+            find(&results, "only_in_dest.txt").status,
+            CompareStatus::DestOnly
+        );
     }
 
     #[test]
@@ -152,7 +161,10 @@ mod tests {
         fs::write(dest.path().join("changed.txt"), b"much longer content").unwrap();
 
         let results = compare_trees(source.path(), dest.path()).unwrap();
-        assert_eq!(find(&results, "changed.txt").status, CompareStatus::Modified);
+        assert_eq!(
+            find(&results, "changed.txt").status,
+            CompareStatus::Modified
+        );
     }
 
     #[test]
@@ -161,7 +173,10 @@ mod tests {
         let dest = tempfile::tempdir().unwrap();
         fs::write(source.path().join("touched.txt"), b"same bytes").unwrap();
         fs::write(dest.path().join("touched.txt"), b"same bytes").unwrap();
-        set_mtime(&source.path().join("touched.txt"), SystemTime::now() - Duration::from_secs(120));
+        set_mtime(
+            &source.path().join("touched.txt"),
+            SystemTime::now() - Duration::from_secs(120),
+        );
         set_mtime(&dest.path().join("touched.txt"), SystemTime::now());
 
         let results = compare_trees(source.path(), dest.path()).unwrap();
@@ -174,7 +189,10 @@ mod tests {
         let dest = tempfile::tempdir().unwrap();
         fs::write(source.path().join("edited.txt"), b"aaaaaaaaaa").unwrap();
         fs::write(dest.path().join("edited.txt"), b"bbbbbbbbbb").unwrap();
-        set_mtime(&source.path().join("edited.txt"), SystemTime::now() - Duration::from_secs(120));
+        set_mtime(
+            &source.path().join("edited.txt"),
+            SystemTime::now() - Duration::from_secs(120),
+        );
         set_mtime(&dest.path().join("edited.txt"), SystemTime::now());
 
         let results = compare_trees(source.path(), dest.path()).unwrap();

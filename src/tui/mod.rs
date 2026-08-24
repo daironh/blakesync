@@ -11,7 +11,9 @@ use std::time::Duration;
 
 use crossterm::event::{self, Event};
 use crossterm::execute;
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
+use crossterm::terminal::{
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+};
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
@@ -73,10 +75,11 @@ fn run_execution(
     let actions = executor::plan_actions(&app.entries, &app.tags);
     app.progress = Some((0, actions.len()));
 
-    let results = executor::execute_plan(&actions, source_root, dest_root, dry_run, |done, total| {
-        app.progress = Some((done, total));
-        let _ = terminal.draw(|frame| ui::draw(frame, app));
-    })?;
+    let results =
+        executor::execute_plan(&actions, source_root, dest_root, dry_run, |done, total| {
+            app.progress = Some((done, total));
+            let _ = terminal.draw(|frame| ui::draw(frame, app));
+        })?;
 
     for result in &results {
         log_result(result, dry_run);
@@ -96,7 +99,11 @@ fn run_execution(
 
 fn log_result(result: &executor::ActionResult, dry_run: bool) {
     if dry_run {
-        log::info!("[dry-run] {}: {}", result.rel_path.display(), result.message);
+        log::info!(
+            "[dry-run] {}: {}",
+            result.rel_path.display(),
+            result.message
+        );
     } else {
         log::info!("{}: {}", result.rel_path.display(), result.message);
     }

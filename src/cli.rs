@@ -42,14 +42,9 @@ mod tests {
 
     #[test]
     fn parses_log_file_option() {
-        let cli = Cli::try_parse_from([
-            "blakesync",
-            "src_dir",
-            "dst_dir",
-            "--log-file",
-            "sync.log",
-        ])
-        .unwrap();
+        let cli =
+            Cli::try_parse_from(["blakesync", "src_dir", "dst_dir", "--log-file", "sync.log"])
+                .unwrap();
         assert_eq!(cli.log_file, Some(PathBuf::from("sync.log")));
     }
 
@@ -59,4 +54,3 @@ mod tests {
         assert!(result.is_err());
     }
 }
-

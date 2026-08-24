@@ -13,7 +13,8 @@ use crate::engine::{CompareStatus, ComparisonEntry};
 use super::app::Tag;
 use super::App;
 
-const HELP_TEXT: &str = "j/k move  s=keep source  d=keep dest  i=ignore  h=hash  Enter=execute  q=quit";
+const HELP_TEXT: &str =
+    "j/k move  s=keep source  d=keep dest  i=ignore  h=hash  Enter=execute  q=quit";
 
 pub fn draw(frame: &mut Frame, app: &App) {
     let rows = Layout::default()
@@ -60,11 +61,20 @@ fn draw_inspector(frame: &mut Frame, area: Rect, app: &App) {
 /// falls back to the last status message (or a keybinding hint).
 fn draw_status_bar(frame: &mut Frame, area: Rect, app: &App) {
     if let Some((done, total)) = app.progress {
-        let ratio = if total == 0 { 1.0 } else { done as f64 / total as f64 };
-        let gauge = Gauge::default().ratio(ratio.clamp(0.0, 1.0)).label(format!("{done}/{total}"));
+        let ratio = if total == 0 {
+            1.0
+        } else {
+            done as f64 / total as f64
+        };
+        let gauge = Gauge::default()
+            .ratio(ratio.clamp(0.0, 1.0))
+            .label(format!("{done}/{total}"));
         frame.render_widget(gauge, area);
     } else {
-        let text = app.status_message.clone().unwrap_or_else(|| HELP_TEXT.to_string());
+        let text = app
+            .status_message
+            .clone()
+            .unwrap_or_else(|| HELP_TEXT.to_string());
         frame.render_widget(Paragraph::new(text), area);
     }
 }
@@ -153,7 +163,8 @@ pub fn inspector_lines(app: &App) -> Vec<String> {
 }
 
 fn format_hash(hash: Option<blake3::Hash>) -> String {
-    hash.map(|h| h.to_hex().to_string()).unwrap_or_else(|| "n/a".to_string())
+    hash.map(|h| h.to_hex().to_string())
+        .unwrap_or_else(|| "n/a".to_string())
 }
 
 fn format_mtime(time: std::time::SystemTime) -> String {
@@ -204,14 +215,30 @@ mod tests {
     #[test]
     fn tag_marker_reflects_tag_state() {
         assert_eq!(list_row(&sample_entry(), None).chars().nth(1), Some(' '));
-        assert_eq!(list_row(&sample_entry(), Some(Tag::KeepSource)).chars().nth(1), Some('S'));
-        assert_eq!(list_row(&sample_entry(), Some(Tag::KeepDest)).chars().nth(1), Some('D'));
-        assert_eq!(list_row(&sample_entry(), Some(Tag::Ignore)).chars().nth(1), Some('X'));
+        assert_eq!(
+            list_row(&sample_entry(), Some(Tag::KeepSource))
+                .chars()
+                .nth(1),
+            Some('S')
+        );
+        assert_eq!(
+            list_row(&sample_entry(), Some(Tag::KeepDest))
+                .chars()
+                .nth(1),
+            Some('D')
+        );
+        assert_eq!(
+            list_row(&sample_entry(), Some(Tag::Ignore)).chars().nth(1),
+            Some('X')
+        );
     }
 
     #[test]
     fn inspector_lines_reports_no_selection() {
-        assert_eq!(inspector_lines(&app_with(vec![])), vec!["No files to review.".to_string()]);
+        assert_eq!(
+            inspector_lines(&app_with(vec![])),
+            vec!["No files to review.".to_string()]
+        );
     }
 
     #[test]
